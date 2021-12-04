@@ -2,41 +2,42 @@
 
 pragma solidity ^0.6.6;
 
-import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
-import "@chainlink/contracts/src/v0.6/vendor/SafeMathChainlink.sol";
+import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol"; // uses the brownie-config file to define where @chainlink is
+import "@chainlink/contracts/src/v0.6/vendor/SafeMathChainlink.sol"; // uses the brownie-config file to define where @chainlink is
 
 contract FundMe {
-    using SafeMathChainlink for uint256;
+    using SafeMathChainlink for uint256; //inherits safemath for uint256 so functions do not have to be uses explicitly
 
-    mapping(address => uint256) public addressToAmountFunded;
-    address[] public funders;
-    address public owner;
-    AggregatorV3Interface public priceFeed;
+    mapping(address => uint256) public addressToAmountFunded; // creates an object which stores the address and the amount funded to the contract
+    address[] public funders; // list of funding addresses
+    address public owner; // address of the owner
+    AggregatorV3Interface public priceFeed; // sets the chainlink interface to pricefeed
 
-    // if you're following along with the freecodecamp video
-    // Please see https://github.com/PatrickAlphaC/fund_me
-    // to get the starting solidity contract code, it'll be slightly different than this!
+    // constructor initialises as soon as the contract is deployed
     constructor(address _priceFeed) public {
-        priceFeed = AggregatorV3Interface(_priceFeed);
-        owner = msg.sender;
+        priceFeed = AggregatorV3Interface(_priceFeed); // sets the priceFeed to the address set in the deploy.py, defined in the brownie-config file
+        owner = msg.sender; // sets the deploying wallet as the owner
     }
 
+    // defines function, name, public access and that the function involves payment
     function fund() public payable {
-        uint256 mimimumUSD = 50 * 10**18;
+        uint256 mimimumUSD = 50 * 10**18; // sets minimum amount to $50
         require(
             getConversionRate(msg.value) >= mimimumUSD,
             "You need to spend more ETH!"
-        );
-        addressToAmountFunded[msg.sender] += msg.value;
-        funders.push(msg.sender);
+        ); // require ensures that it is met or the transaction fails, first arguement is the requirement, second is the error message
+        addressToAmountFunded[msg.sender] += msg.value; // updates the object for each address to new funding amount
+        funders.push(msg.sender); // adds address to list of funders
     }
 
+    // public view function which shows the version of the pricefeed from the chainlink node
     function getVersion() public view returns (uint256) {
         return priceFeed.version();
     }
 
+    //
     function getPrice() public view returns (uint256) {
-        (, int256 answer, , , ) = priceFeed.latestRoundData();
+        (, int256 answer, , , ) = priceFeed.latestRoundData(); // calls the AggregatorV3Interface latestRoundData function, which returns 5 variablesm only need the second variable
         return uint256(answer * 10000000000);
     }
 
@@ -65,16 +66,17 @@ contract FundMe {
     }
 
     function withdraw() public payable onlyOwner {
-        msg.sender.transfer(address(this).balance);
+        msg.sender.transfer(address(this).balance); // withdraws balance to owner
 
+        // creates a for loop, iterates through the list and resets all accounts to 0 funding
         for (
             uint256 funderIndex = 0;
             funderIndex < funders.length;
             funderIndex++
         ) {
             address funder = funders[funderIndex];
-            addressToAmountFunded[funder] = 0;
+            addressToAmountFunded[funder] = 0; //
         }
-        funders = new address[](0);
+        funders = new address[](0); // resets the funders list once a withdraw event has occured
     }
 }
